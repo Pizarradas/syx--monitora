@@ -1,0 +1,714 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=375, initial-scale=1">
+  <title>Monitora</title>
+  <link rel="stylesheet" href="css/styles-theme-example-01.css">
+  <link rel="stylesheet" href="sidepanel.css">
+</head>
+<body class="reading-panel">
+
+  <header class="reading-panel__header">
+    <div class="reading-panel__header-top">
+      <div class="reading-panel__brand" aria-label="Monitora">
+        <span class="reading-panel__brand-mark" aria-hidden="true">
+          <svg class="reading-panel__logo" viewBox="0 0 24 24" role="img" aria-hidden="true">
+            <rect x="3" y="4" width="3" height="16" rx="1.5" fill="currentColor"></rect>
+            <rect x="8.5" y="6" width="10.5" height="3" rx="1.5" fill="currentColor" opacity="0.92"></rect>
+            <rect x="8.5" y="10.5" width="8" height="3" rx="1.5" fill="currentColor" opacity="0.72"></rect>
+            <rect x="8.5" y="15" width="11.5" height="3" rx="1.5" fill="currentColor" opacity="0.52"></rect>
+          </svg>
+        </span>
+        <div class="reading-panel__brand-copy">
+          <span class="reading-panel__kicker">Laboratorio de lectura</span>
+          <span class="reading-panel__title">Monitora</span>
+        </div>
+      </div>
+      <button id="btn-history" class="atom-btn atom-btn--ghost atom-btn--size-sm reading-panel__history-btn" aria-pressed="false" title="Historial de lectura">
+        <img src="img/icons/lucide/clock.svg" alt="Historial" aria-hidden="true" class="reading-panel__icon-sm">
+        <span class="reading-panel__history-label">Historial</span>
+      </button>
+    </div>
+    <div class="reading-panel__controls reading-panel__controls--primary">
+      <button id="btn-analyze" class="atom-btn atom-btn--primary atom-btn--filled atom-btn--size-sm reading-panel__analyze-btn">
+        Analizar
+      </button>
+    </div>
+  </header>
+
+  <div id="state-idle" class="reading-panel__state" role="region" aria-live="polite">
+    <img
+      src="img/icons/lucide/book-open.svg"
+      alt=""
+      aria-hidden="true"
+      class="reading-panel__state-icon"
+    >
+    <p class="atom-txt atom-txt--muted" id="state-idle-copy">
+      Navega a un artículo y haz clic en <strong>Analizar</strong> para examinar su estructura y sus señales léxicas.
+    </p>
+    <div class="mol-trust-signals mol-trust-signals--idle" id="idle-domain-alert" hidden></div>
+  </div>
+
+  <div id="state-loading" class="reading-panel__state" hidden role="status" aria-live="polite">
+    <div class="reading-panel__spinner" aria-label="Analizando..."></div>
+    <p class="atom-txt atom-txt--muted" id="state-loading-copy">Extrayendo y analizando contenido...</p>
+  </div>
+
+  <div id="state-error" class="reading-panel__state reading-panel__state--error" hidden role="alert">
+    <img
+      src="img/icons/lucide/alert-triangle.svg"
+      alt=""
+      aria-hidden="true"
+      class="reading-panel__state-icon reading-panel__state-icon--error"
+    >
+    <p class="atom-txt" id="error-message"></p>
+    <button id="btn-retry" class="atom-btn atom-btn--secondary atom-btn--size-sm">
+      Reintentar
+    </button>
+  </div>
+
+  <main id="panel-content" class="reading-panel__content" hidden aria-live="polite">
+    <section class="mol-reading-card mol-reading-card--meta" aria-label="Metadatos del articulo">
+      <p class="mol-reading-card__meta-title" id="meta-title"></p>
+      <p class="mol-reading-card__meta-byline" id="meta-byline"></p>
+    </section>
+
+    <section id="card-alerts" class="mol-reading-card mol-reading-card--alerts" hidden aria-label="Señales de lectura">
+      <div class="mol-reading-alerts" id="alerts-list"></div>
+    </section>
+
+    <section class="mol-reading-card mol-reading-card--reading-map" id="card-reading-map">
+      <div class="mol-reading-card__toggle-row">
+        <button class="mol-reading-card__toggle" aria-expanded="true" aria-controls="body-reading-map">
+          <span class="mol-reading-card__title" id="title-reading-map">Mapa de lectura</span>
+          <img
+            src="img/icons/lucide/chevron-down.svg"
+            alt=""
+            aria-hidden="true"
+            class="mol-reading-card__chevron is-open"
+          >
+        </button>
+        <button id="btn-export" class="atom-btn atom-btn--ghost atom-btn--size-xs" title="Copiar ficha">⎘</button>
+      </div>
+      <p class="mol-reading-map__limited-note" id="reading-map-limited-note" hidden>Activa la semántica asistida o la traducción para obtener el mapa completo.</p>
+      <div class="mol-reading-card__body" id="body-reading-map">
+        <div class="mol-reading-map__header-row">
+          <div class="mol-reading-map__badges">
+            <span class="mol-reading-badge" id="reading-map-provenance"></span>
+            <span class="mol-reading-badge mol-reading-badge--muted" id="reading-map-confidence"></span>
+          </div>
+          <div class="mol-trust-signals" id="trust-signals" hidden></div>
+        </div>
+        <div class="mol-reading-map__badges mol-reading-map__badges--detail" id="pipeline-badges"></div>
+        <p class="mol-reading-map__summary" id="reading-map-summary"></p>
+        <div class="mol-reading-map__quick" id="reading-map-quick">
+          <div class="mol-reading-map__badges" id="summary-badges">
+            <span class="mol-reading-badge" id="summary-mode-badge"></span>
+            <span class="mol-reading-badge mol-reading-badge--muted" id="summary-translation-badge"></span>
+          </div>
+          <p class="mol-summary-card__warning" id="summary-warning" hidden></p>
+          <p class="mol-summary-card__lead" id="summary-lead"></p>
+          <div class="mol-summary-card__tips" id="summary-tips"></div>
+        </div>
+        <div class="mol-analysis-actions" id="analysis-actions" hidden>
+          <div class="mol-analysis-actions__head">
+            <p class="mol-analysis-actions__title" id="analysis-actions-title">Capas del analisis</p>
+            <p class="mol-analysis-actions__copy" id="analysis-actions-copy">Activa o ajusta desde aqui las capas que enriquecen este analisis. Al cambiar una capa, el mapa se recarga arriba automaticamente.</p>
+          </div>
+          <div class="mol-analysis-actions__list" id="analysis-actions-list"></div>
+        </div>
+        <ul class="mol-reading-map__list" id="reading-map-points"></ul>
+        <div class="mol-reading-map__footer">
+          <p class="mol-reading-map__language" id="reading-map-language"></p>
+          <div class="mol-compare-actions">
+            <button id="btn-save-reference" class="atom-btn atom-btn--secondary atom-btn--size-sm">Guardar referencia</button>
+            <button id="btn-clear-reference" class="atom-btn atom-btn--secondary atom-btn--size-sm">Limpiar referencia</button>
+          </div>
+          <p class="mol-compare-reference" id="compare-reference-status">Sin referencia comparativa guardada.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="mol-reading-card mol-reading-card--workflow" id="card-workflow">
+      <button class="mol-reading-card__toggle" aria-expanded="false" aria-controls="body-workflow">
+        <span class="mol-reading-card__title" id="workflow-eyebrow-title">Proceso</span>
+        <img
+          src="img/icons/lucide/chevron-down.svg"
+          alt=""
+          aria-hidden="true"
+          class="mol-reading-card__chevron"
+        >
+      </button>
+      <div class="mol-reading-card__body" id="body-workflow" hidden>
+        <div class="mol-workflow__header">
+          <p class="mol-summary-card__eyebrow" id="workflow-eyebrow">Proceso</p>
+          <p class="mol-workflow__title" id="workflow-title">Que esta usando ahora mismo el sistema</p>
+        </div>
+        <div class="mol-workflow__steps">
+          <article class="mol-workflow-step" id="workflow-step-extraction">
+            <div class="mol-workflow-step__head">
+              <span class="mol-workflow-step__index">1</span>
+              <div>
+                <p class="mol-workflow-step__title" id="workflow-extraction-title">Extraccion</p>
+                <p class="mol-workflow-step__status" id="workflow-extraction-status">Pendiente</p>
+              </div>
+            </div>
+            <p class="mol-workflow-step__text" id="workflow-extraction-copy"></p>
+          </article>
+          <article class="mol-workflow-step" id="workflow-step-local">
+            <div class="mol-workflow-step__head">
+              <span class="mol-workflow-step__index">2</span>
+              <div>
+                <p class="mol-workflow-step__title" id="workflow-local-title">Analisis local</p>
+                <p class="mol-workflow-step__status" id="workflow-local-status">Pendiente</p>
+              </div>
+            </div>
+            <p class="mol-workflow-step__text" id="workflow-local-copy"></p>
+          </article>
+          <article class="mol-workflow-step" id="workflow-step-translation">
+            <div class="mol-workflow-step__head">
+              <span class="mol-workflow-step__index">3</span>
+              <div>
+                <p class="mol-workflow-step__title" id="workflow-translation-title">Traduccion</p>
+                <p class="mol-workflow-step__status" id="workflow-translation-status">Pendiente</p>
+              </div>
+            </div>
+            <p class="mol-workflow-step__text" id="workflow-translation-copy"></p>
+          </article>
+          <article class="mol-workflow-step" id="workflow-step-semantic">
+            <div class="mol-workflow-step__head">
+              <span class="mol-workflow-step__index">4</span>
+              <div>
+                <p class="mol-workflow-step__title" id="workflow-semantic-title">Resumen semantico</p>
+                <p class="mol-workflow-step__status" id="workflow-semantic-status">Pendiente</p>
+              </div>
+            </div>
+            <p class="mol-workflow-step__text" id="workflow-semantic-copy"></p>
+            <div class="mol-workflow-step__assist" id="workflow-semantic-assist" hidden>
+              <div class="mol-workflow-step__assist-actions">
+                <button id="btn-semantic-quick-enable" class="atom-btn atom-btn--secondary atom-btn--size-sm">Activar ahora</button>
+                <button id="btn-semantic-open-settings" class="atom-btn atom-btn--ghost atom-btn--size-sm">Elegir proveedor</button>
+                <button id="btn-semantic-local-only" class="atom-btn atom-btn--ghost atom-btn--size-sm">Seguir en local</button>
+              </div>
+              <p class="mol-workflow-step__assist-meta" id="workflow-semantic-assist-meta"></p>
+            </div>
+          </article>
+          <article class="mol-workflow-step" id="workflow-step-final">
+            <div class="mol-workflow-step__head">
+              <span class="mol-workflow-step__index">5</span>
+              <div>
+                <p class="mol-workflow-step__title" id="workflow-final-title">Mapa final</p>
+                <p class="mol-workflow-step__status" id="workflow-final-status">Pendiente</p>
+              </div>
+            </div>
+            <p class="mol-workflow-step__text" id="workflow-final-copy"></p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="mol-reading-card" id="card-compare" hidden>
+      <button class="mol-reading-card__toggle" aria-expanded="true" aria-controls="body-compare">
+        <span class="mol-reading-card__title" id="title-compare">Comparativa</span>
+        <img
+          src="img/icons/lucide/chevron-down.svg"
+          alt=""
+          aria-hidden="true"
+          class="mol-reading-card__chevron is-open"
+        >
+      </button>
+      <div class="mol-reading-card__body" id="body-compare">
+        <p class="mol-reading-map__summary" id="compare-summary"></p>
+        <div class="mol-compare-grid">
+          <div class="mol-semantic-block">
+            <p class="mol-semantic-block__title" id="compare-current-label">Actual</p>
+            <p class="mol-semantic-block__text" id="compare-current-title"></p>
+          </div>
+          <div class="mol-semantic-block">
+            <p class="mol-semantic-block__title" id="compare-reference-label">Referencia</p>
+            <p class="mol-semantic-block__text" id="compare-reference-title"></p>
+          </div>
+        </div>
+        <ul class="mol-reading-map__list" id="compare-points"></ul>
+      </div>
+    </section>
+
+    <section class="mol-reading-card" id="card-structure">
+      <button class="mol-reading-card__toggle" aria-expanded="true" aria-controls="body-structure">
+        <span class="mol-reading-card__title" id="title-structure">Base</span>
+        <img
+          src="img/icons/lucide/chevron-down.svg"
+          alt=""
+          aria-hidden="true"
+          class="mol-reading-card__chevron is-open"
+        >
+      </button>
+      <div class="mol-reading-card__body" id="body-structure">
+        <div class="mol-stats-grid">
+          <div class="mol-stat">
+            <span class="mol-stat__value" id="stat-words">-</span>
+            <span class="mol-stat__label" id="label-stat-words">Palabras</span>
+          </div>
+          <div class="mol-stat">
+            <span class="mol-stat__value" id="stat-readTime">-</span>
+            <span class="mol-stat__label" id="label-stat-readTime">Lectura</span>
+          </div>
+          <div class="mol-stat">
+            <span class="mol-stat__value" id="stat-paragraphs">-</span>
+            <span class="mol-stat__label" id="label-stat-paragraphs">Parrafos</span>
+          </div>
+          <div class="mol-stat">
+            <span class="mol-stat__value" id="stat-quotes">-</span>
+            <span class="mol-stat__label" id="label-stat-quotes">Citas</span>
+          </div>
+          <div class="mol-stat">
+            <span class="mol-stat__value" id="stat-links">-</span>
+            <span class="mol-stat__label" id="label-stat-links">Links</span>
+          </div>
+          <div class="mol-stat">
+            <span class="mol-stat__value" id="stat-sentences">-</span>
+            <span class="mol-stat__label" id="label-stat-sentences">Oraciones</span>
+          </div>
+          <div class="mol-stat">
+            <span class="mol-stat__value" id="stat-chars">-</span>
+            <span class="mol-stat__label" id="label-stat-chars">Caracteres</span>
+          </div>
+          <div class="mol-stat">
+            <span class="mol-stat__value" id="stat-headings">-</span>
+            <span class="mol-stat__label" id="label-stat-headings">Subtitulos</span>
+          </div>
+          <div class="mol-stat">
+            <span class="mol-stat__value" id="stat-avgSentence">-</span>
+            <span class="mol-stat__label" id="label-stat-avgSentence">Media frase</span>
+          </div>
+          <div class="mol-stat">
+            <span class="mol-stat__value" id="stat-avgParagraph">-</span>
+            <span class="mol-stat__label" id="label-stat-avgParagraph">Media parrafo</span>
+          </div>
+          <div class="mol-stat">
+            <span class="mol-stat__value" id="stat-linkRatio">-</span>
+            <span class="mol-stat__label" id="label-stat-linkRatio">Ratio links</span>
+          </div>
+          <div class="mol-stat">
+            <span class="mol-stat__value" id="stat-quoteRatio">-</span>
+            <span class="mol-stat__label" id="label-stat-quoteRatio">Ratio citas</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="mol-reading-card" id="card-lexical">
+      <button class="mol-reading-card__toggle" aria-expanded="true" aria-controls="body-lexical">
+        <span class="mol-reading-card__title" id="title-lexical">Lenguaje</span>
+        <img
+          src="img/icons/lucide/chevron-down.svg"
+          alt=""
+          aria-hidden="true"
+          class="mol-reading-card__chevron is-open"
+        >
+      </button>
+      <div class="mol-reading-card__body" id="body-lexical">
+        <p class="mol-chart-note" id="lexical-note">Estas barras resumen intensidad relativa: cuanto más alto el valor, más presencia tiene esa señal en el texto.</p>
+        <div class="mol-signal-meter">
+          <span class="mol-signal-meter__label" id="meter-adjectives-label">Densidad de adjetivos</span>
+          <span class="mol-signal-meter__value" id="meter-adjectives-val">-</span>
+          <div class="mol-signal-meter__track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <div class="mol-signal-meter__fill" id="meter-adjectives-fill"></div>
+          </div>
+        </div>
+
+        <div class="mol-signal-meter">
+          <span class="mol-signal-meter__label" id="meter-repetition-label">Repeticion lexica</span>
+          <span class="mol-signal-meter__value" id="meter-repetition-val">-</span>
+          <div class="mol-signal-meter__track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <div class="mol-signal-meter__fill" id="meter-repetition-fill"></div>
+          </div>
+        </div>
+
+        <div class="mol-signal-meter">
+          <span class="mol-signal-meter__label" id="meter-sentenceLen-label">Complejidad oracional</span>
+          <span class="mol-signal-meter__value" id="meter-sentenceLen-val">-</span>
+          <div class="mol-signal-meter__track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <div class="mol-signal-meter__fill" id="meter-sentenceLen-fill"></div>
+          </div>
+        </div>
+
+        <div class="mol-signal-meter" id="meter-readability-wrap">
+          <span class="mol-signal-meter__label" id="meter-readability-label">Legibilidad</span>
+          <span class="mol-signal-meter__value" id="meter-readability-val">-</span>
+          <div class="mol-signal-meter__track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <div class="mol-signal-meter__fill" id="meter-readability-fill"></div>
+          </div>
+        </div>
+
+        <div class="mol-signal-meter">
+          <span class="mol-signal-meter__label" id="meter-weasel-label">Lenguaje evasivo</span>
+          <span class="mol-signal-meter__value" id="meter-weasel-val">-</span>
+          <div class="mol-signal-meter__track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <div class="mol-signal-meter__fill" id="meter-weasel-fill"></div>
+          </div>
+        </div>
+
+        <div class="mol-lexical-resources" id="lexical-resources-block" hidden>
+          <p class="mol-lexical-resources__title" id="lexical-resources-title">Recursos de escritura</p>
+          <p class="mol-chart-note" id="lexical-resources-note">Senales de como se construye el texto. La barra combina presencia e intensidad relativa.</p>
+          <div class="mol-lexical-resources__list" id="lexical-resources-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="mol-reading-card" id="card-terms">
+      <button class="mol-reading-card__toggle" aria-expanded="true" aria-controls="body-terms">
+        <span class="mol-reading-card__title" id="title-terms">Términos y foco</span>
+        <img
+          src="img/icons/lucide/chevron-down.svg"
+          alt=""
+          aria-hidden="true"
+          class="mol-reading-card__chevron is-open"
+        >
+      </button>
+      <div class="mol-reading-card__body" id="body-terms">
+        <p class="mol-chart-note" id="terms-note">Mide la frecuencia de los terminos mas repetidos. Cuanto mas larga la barra, mas veces aparece ese foco en el articulo.</p>
+        <div class="mol-chart-frame">
+          <canvas id="chart-terms" aria-label="Terminos mas frecuentes del articulo"></canvas>
+        </div>
+        <p class="mol-congruence-note" id="title-congruence-note" hidden></p>
+      </div>
+    </section>
+
+    <section class="mol-reading-card" id="card-entities">
+      <button class="mol-reading-card__toggle" aria-expanded="true" aria-controls="body-entities">
+        <span class="mol-reading-card__title" id="title-entities">Actores y atribución</span>
+        <img
+          src="img/icons/lucide/chevron-down.svg"
+          alt=""
+          aria-hidden="true"
+          class="mol-reading-card__chevron is-open"
+        >
+      </button>
+      <div class="mol-reading-card__body" id="body-entities">
+        <div class="mol-chart-block" id="entity-chart-block">
+          <p class="mol-chart-block__title" id="entity-chart-title">Peso de actores</p>
+          <p class="mol-chart-note" id="entity-chart-note">Compara qué actores concentran más presencia dentro del artículo.</p>
+          <div class="mol-chart-frame mol-chart-frame--compact">
+            <canvas id="chart-entities" aria-label="Actores más visibles del artículo"></canvas>
+          </div>
+        </div>
+        <div class="mol-chart-block" id="actor-attribution-block">
+          <p class="mol-chart-block__title" id="actor-attribution-title">Atribución por actor</p>
+          <p class="mol-chart-note" id="actor-attribution-note">Distingue entre menciones apoyadas por atribución visible y menciones desnudas dentro de la pieza.</p>
+          <div class="mol-chart-frame mol-chart-frame--compact">
+            <canvas id="chart-actor-attribution" aria-label="Atribución visible frente a menciones no atribuidas por actor"></canvas>
+          </div>
+        </div>
+        <div class="mol-entity-list" id="entity-list"></div>
+      </div>
+    </section>
+
+    <section class="mol-reading-card" id="card-sources">
+      <button class="mol-reading-card__toggle" aria-expanded="true" aria-controls="body-sources">
+        <span class="mol-reading-card__title" id="title-sources">Fuentes y apoyo</span>
+        <img
+          src="img/icons/lucide/chevron-down.svg"
+          alt=""
+          aria-hidden="true"
+          class="mol-reading-card__chevron is-open"
+        >
+      </button>
+      <div class="mol-reading-card__body" id="body-sources">
+        <p class="mol-diversity-note" id="source-diversity-note" hidden></p>
+        <p class="mol-diversity-note" id="source-anatomy-dominant" hidden></p>
+        <div class="mol-chart-block" id="source-chart-block">
+          <p class="mol-chart-block__title" id="source-chart-title">Composición de fuentes</p>
+          <p class="mol-chart-note" id="source-chart-note">Resume cómo se reparte el apoyo entre fuentes primarias, expertas, mediales, anónimas y sin atribución.</p>
+          <div class="mol-chart-frame mol-chart-frame--donut">
+            <canvas id="chart-source-anatomy" aria-label="Composición de tipos de fuente"></canvas>
+          </div>
+        </div>
+        <div class="mol-entity-list" id="source-anatomy-bars"></div>
+        <div class="mol-entity-list" id="sources-list"></div>
+      </div>
+    </section>
+
+    <section class="mol-reading-card" id="card-sentiment">
+      <button class="mol-reading-card__toggle" aria-expanded="true" aria-controls="body-sentiment">
+        <span class="mol-reading-card__title" id="title-sentiment">Arquitectura del texto</span>
+        <img
+          src="img/icons/lucide/chevron-down.svg"
+          alt=""
+          aria-hidden="true"
+          class="mol-reading-card__chevron is-open"
+        >
+      </button>
+      <div class="mol-reading-card__body" id="body-sentiment">
+        <p class="mol-chart-note" id="sentiment-note">Combina foco léxico, balance argumental y recorrido por párrafos para describir cómo avanza el texto.</p>
+        <div class="mol-discourse-grid">
+          <article class="mol-discourse-block" id="discourse-focus-block">
+            <div class="mol-discourse-block__head">
+              <p class="mol-discourse-block__title" id="discourse-focus-title">Focos léxicos</p>
+              <p class="mol-discourse-block__copy" id="discourse-focus-copy">Los términos que fijan el tema y sostienen la pieza.</p>
+            </div>
+            <div class="mol-discourse-focus" id="discourse-focus-list"></div>
+          </article>
+          <article class="mol-discourse-block" id="discourse-balance-block">
+            <div class="mol-discourse-block__head">
+              <p class="mol-discourse-block__title" id="discourse-balance-title">Balance argumental</p>
+              <p class="mol-discourse-block__copy" id="discourse-balance-copy">Separa evidencia, interpretación y opinión para ver dónde carga más el texto.</p>
+            </div>
+            <div class="mol-discourse-balance" id="discourse-balance-list"></div>
+          </article>
+        </div>
+        <div class="mol-chart-block" id="argument-chart-block">
+          <p class="mol-chart-block__title" id="argument-chart-title">Perfil argumentativo</p>
+          <p class="mol-chart-note" id="argument-chart-note">Visualiza el reparto entre evidencia, interpretación y opinión como una huella global del texto.</p>
+          <div class="mol-chart-frame mol-chart-frame--compact">
+            <canvas id="chart-argument-balance" aria-label="Balance entre evidencia, interpretación y opinión"></canvas>
+          </div>
+        </div>
+        <div class="mol-chart-block" id="paragraph-flow-block">
+          <p class="mol-chart-block__title" id="paragraph-flow-title">Progresión por párrafo</p>
+          <p class="mol-chart-note" id="paragraph-flow-note">Cruza foco temático y atribución visible para detectar dónde el texto sostiene mejor su avance.</p>
+          <div class="mol-chart-frame mol-chart-frame--compact">
+            <canvas id="chart-paragraph-flow" aria-label="Progresión temática y atribución por párrafo"></canvas>
+          </div>
+        </div>
+        <p class="mol-sentiment-label" id="sentiment-label"></p>
+        <div class="mol-sentiment-summary" id="sentiment-summary">
+          <div class="mol-sentiment-summary__chips">
+            <span class="mol-sentiment-chip mol-sentiment-chip--tone" id="sentiment-chip-tone"></span>
+            <span class="mol-sentiment-chip mol-sentiment-chip--motion" id="sentiment-chip-motion"></span>
+            <span class="mol-sentiment-chip mol-sentiment-chip--peak" id="sentiment-chip-peak"></span>
+          </div>
+          <p class="mol-sentiment-summary__text" id="sentiment-summary-text"></p>
+        </div>
+        <div class="mol-chart-frame mol-chart-frame--sentiment">
+          <canvas id="chart-sentiment" aria-label="Cadencia estructural por párrafo"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <section class="mol-reading-card" id="card-profile">
+      <button class="mol-reading-card__toggle" aria-expanded="true" aria-controls="body-profile">
+        <span class="mol-reading-card__title" id="title-profile">Perfil retórico</span>
+        <img
+          src="img/icons/lucide/chevron-down.svg"
+          alt=""
+          aria-hidden="true"
+          class="mol-reading-card__chevron is-open"
+        >
+      </button>
+      <div class="mol-reading-card__body" id="body-profile">
+        <p class="mol-chart-note" id="profile-note">Compara cinco rasgos del estilo del texto. Cuanto mas se expande cada eje, mayor peso tiene esa dimension en la pieza.</p>
+        <div class="mol-chart-frame mol-chart-frame--radar">
+          <canvas id="chart-profile" aria-label="Radar de perfil de estilo del articulo"></canvas>
+        </div>
+        <div class="mol-chart-block" id="rhetorical-flow-block">
+          <p class="mol-chart-block__title" id="rhetorical-flow-title">Cohesión y modalización</p>
+          <p class="mol-chart-note" id="rhetorical-flow-note">Observa cómo se enlazan los párrafos y cuánto recurre el texto a duda, hipótesis o inferencia.</p>
+          <div class="mol-chart-frame mol-chart-frame--compact">
+            <canvas id="chart-rhetorical-flow" aria-label="Cohesión y modalización por párrafo"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="mol-reading-card" id="card-narrative-frames">
+      <button class="mol-reading-card__toggle" aria-expanded="true" aria-controls="body-narrative-frames">
+        <span class="mol-reading-card__title" id="title-narrative-frames">Voces y encuadre</span>
+        <img
+          src="img/icons/lucide/chevron-down.svg"
+          alt=""
+          aria-hidden="true"
+          class="mol-reading-card__chevron is-open"
+        >
+      </button>
+      <div class="mol-reading-card__body" id="body-narrative-frames">
+        <p class="mol-diversity-note" id="narrative-dominant-label" hidden></p>
+        <div class="mol-chart-block" id="frame-chart-block">
+          <p class="mol-chart-block__title" id="frame-chart-title">Balance de encuadres</p>
+          <p class="mol-chart-note" id="frame-chart-note">Resume el reparto entre los marcos narrativos detectados en la pieza.</p>
+          <div class="mol-chart-frame mol-chart-frame--donut">
+            <canvas id="chart-frame-distribution" aria-label="Distribución de marcos narrativos"></canvas>
+          </div>
+        </div>
+        <div id="narrative-frames-list"></div>
+        <p class="mol-diversity-note" id="perspective-plurality-label" hidden></p>
+        <div id="perspective-voices-list"></div>
+        <div id="perspective-omitted-list" hidden></div>
+      </div>
+    </section>
+
+    <section class="mol-reading-card" id="card-comparative-coverage" hidden>
+      <button class="mol-reading-card__toggle" aria-expanded="true" aria-controls="body-comparative-coverage">
+        <span class="mol-reading-card__title" id="title-comparative-coverage">Cobertura comparativa</span>
+        <img
+          src="img/icons/lucide/chevron-down.svg"
+          alt=""
+          aria-hidden="true"
+          class="mol-reading-card__chevron is-open"
+        >
+      </button>
+      <div class="mol-reading-card__body" id="body-comparative-coverage">
+        <p class="mol-diversity-note" id="comparative-frame-diversity" hidden></p>
+        <div id="comparative-results-list"></div>
+      </div>
+    </section>
+
+    <section class="mol-reading-card" id="card-semantic-ai">
+      <button class="mol-reading-card__toggle" aria-expanded="false" aria-controls="body-semantic-ai">
+        <span class="mol-reading-card__title" id="title-semantic-ai">Semántica asistida</span>
+        <img
+          src="img/icons/lucide/chevron-down.svg"
+          alt=""
+          aria-hidden="true"
+          class="mol-reading-card__chevron"
+        >
+      </button>
+      <div class="mol-reading-card__body" id="body-semantic-ai" hidden>
+        <div class="mol-semantic-settings">
+          <div class="mol-semantic-settings__group mol-semantic-settings__group--capabilities">
+            <p class="mol-semantic-settings__group-title" id="title-capabilities">Capacidades disponibles</p>
+            <p class="mol-semantic-settings__hint" id="capabilities-hint">El modo simple prioriza rutas estables. Los proveedores locales quedan como opciones experimentales.</p>
+            <div class="mol-capability-grid">
+              <div class="mol-capability-card">
+                <p class="mol-capability-card__label" id="label-capability-semantic">Resumen semantico</p>
+                <p class="mol-capability-card__value" id="capability-semantic-primary">Sin ruta estable</p>
+                <p class="mol-capability-card__meta" id="capability-semantic-detail">Configura un servicio remoto o usa Chrome AI si esta disponible.</p>
+              </div>
+              <div class="mol-capability-card">
+                <p class="mol-capability-card__label" id="label-capability-translation">Traduccion</p>
+                <p class="mol-capability-card__value" id="capability-translation-primary">Sin ruta estable</p>
+                <p class="mol-capability-card__meta" id="capability-translation-detail">Configura un servicio remoto para ofrecer traduccion asistida estable.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="mol-semantic-settings__group">
+            <p class="mol-semantic-settings__group-title" id="title-translation-ai">Traduccion previa</p>
+            <p class="mol-semantic-settings__hint" id="translation-hint">Usala cuando el articulo este en otro idioma y quieras ver el resumen en espanol o ingles.</p>
+            <label class="mol-semantic-settings__row">
+              <input type="checkbox" id="translation-ai-enabled">
+              <span id="label-translation-enabled">Activar traduccion asistida</span>
+            </label>
+            <label class="mol-semantic-settings__stack">
+              <span id="label-translation-provider">Proveedor</span>
+              <select id="translation-provider" class="reading-panel__lang-select">
+                <option value="auto">Auto (usar lo que ya este listo)</option>
+                <option value="remote">Tu API de traduccion</option>
+                <option value="libretranslate">LibreTranslate (experimental)</option>
+                <option value="mock">Mock / Dev</option>
+              </select>
+            </label>
+            <label class="mol-semantic-settings__stack">
+              <span id="label-translation-endpoint">Endpoint</span>
+              <input id="translation-endpoint" class="mol-semantic-settings__input" type="text" placeholder="http://127.0.0.1:5000">
+            </label>
+            <div class="mol-semantic-settings__actions">
+              <button id="btn-translation-save" class="atom-btn atom-btn--secondary atom-btn--size-sm">Guardar</button>
+              <span class="mol-semantic-settings__status" id="translation-status">Traduccion local desactivada.</span>
+            </div>
+          </div>
+
+          <div class="mol-semantic-settings__group">
+            <p class="mol-semantic-settings__group-title" id="title-semantic-config">Resumen semantico</p>
+          <p class="mol-semantic-settings__hint" id="semantic-hint">Usa esta capa solo en entornos experimentales para ampliar tema, actores y eventos clave.</p>
+          <label class="mol-semantic-settings__row">
+            <input type="checkbox" id="semantic-ai-enabled">
+            <span id="label-semantic-enabled">Activar resumen semantico asistido</span>
+          </label>
+          <label class="mol-semantic-settings__stack">
+              <span id="label-semantic-provider">Proveedor</span>
+              <select id="semantic-provider" class="reading-panel__lang-select">
+                <option value="auto">Auto (usar lo que ya este listo)</option>
+                <option value="remote">Tu API de resumen</option>
+                <option value="chrome-ai">Chrome AI (local)</option>
+                <option value="ollama">Ollama (experimental)</option>
+              </select>
+            </label>
+            <label class="mol-semantic-settings__stack">
+              <span id="label-semantic-endpoint">Endpoint</span>
+              <input id="semantic-endpoint" class="mol-semantic-settings__input" type="text" placeholder="http://127.0.0.1:5000">
+            </label>
+          <label class="mol-semantic-settings__stack">
+            <span id="label-semantic-model">Modelo</span>
+            <input id="semantic-model" class="mol-semantic-settings__input" type="text" placeholder="qwen2.5:3b-instruct">
+          </label>
+          <div class="mol-semantic-settings__actions">
+            <button id="btn-semantic-save" class="atom-btn atom-btn--secondary atom-btn--size-sm">Guardar</button>
+            <span class="mol-semantic-settings__status" id="semantic-status">Modo local sin IA semantica.</span>
+          </div>
+          </div>
+
+          <div class="mol-semantic-settings__group">
+            <p class="mol-semantic-settings__group-title" id="title-comparative-config">Cobertura comparativa</p>
+            <p class="mol-semantic-settings__hint" id="comparative-hint">Busca como otros medios cubren el mismo hecho. Requiere una API key de Brave Search (plan gratuito disponible). Tu clave va directamente a Brave, sin intermediarios.</p>
+            <label class="mol-semantic-settings__row">
+              <input type="checkbox" id="comparative-enabled">
+              <span id="label-comparative-enabled">Activar busqueda comparativa</span>
+            </label>
+            <label class="mol-semantic-settings__stack">
+              <span id="label-comparative-apikey">Brave API Key</span>
+              <input id="comparative-apikey" class="mol-semantic-settings__input" type="password" placeholder="BSA...">
+            </label>
+            <div class="mol-semantic-settings__actions">
+              <button id="btn-comparative-save" class="atom-btn atom-btn--secondary atom-btn--size-sm">Guardar</button>
+              <span class="mol-semantic-settings__status" id="comparative-status">Cobertura comparativa desactivada.</span>
+            </div>
+          </div>
+        </div>
+        <div class="mol-semantic-output" id="semantic-output" hidden>
+          <p class="mol-semantic-output__summary" id="semantic-summary"></p>
+          <p class="mol-semantic-output__orientation" id="semantic-orientation"></p>
+          <div class="mol-semantic-editorial" id="semantic-editorial" hidden>
+            <div class="mol-semantic-editorial__tone-row">
+              <span class="mol-semantic-editorial__tone-label" id="semantic-tone-label">Tono editorial</span>
+              <span class="mol-semantic-editorial__tone-value" id="semantic-editorial-tone"></span>
+            </div>
+            <ul class="mol-semantic-editorial__signals" id="semantic-rhetorical-signals"></ul>
+            <p class="mol-semantic-editorial__note" id="semantic-reading-note"></p>
+          </div>
+          <div class="mol-semantic-output__grid">
+            <div class="mol-semantic-block">
+              <p class="mol-semantic-block__title" id="semantic-topic-label">De que va</p>
+              <p class="mol-semantic-block__text" id="semantic-topic"></p>
+            </div>
+            <div class="mol-semantic-block">
+              <p class="mol-semantic-block__title" id="semantic-actors-label">Actores</p>
+              <ul class="mol-semantic-block__list" id="semantic-actors"></ul>
+            </div>
+            <div class="mol-semantic-block">
+              <p class="mol-semantic-block__title" id="semantic-events-label">Eventos</p>
+              <ul class="mol-semantic-block__list" id="semantic-events"></ul>
+            </div>
+            <div class="mol-semantic-block">
+              <p class="mol-semantic-block__title" id="semantic-points-label">Claves</p>
+              <ul class="mol-semantic-block__list" id="semantic-points"></ul>
+            </div>
+            <div class="mol-semantic-block">
+              <p class="mol-semantic-block__title" id="semantic-omitted-label">Angulos omitidos</p>
+              <ul class="mol-semantic-block__list" id="semantic-omitted"></ul>
+            </div>
+            <div class="mol-semantic-block">
+              <p class="mol-semantic-block__title" id="semantic-unsourced-label">Claims sin fuente</p>
+              <ul class="mol-semantic-block__list" id="semantic-unsourced"></ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <section id="history-panel" class="reading-panel__history" hidden aria-label="Historial de lectura">
+    <div class="mol-history__header">
+      <p class="mol-history__title">Historial de lectura</p>
+      <button id="btn-history-close" class="atom-btn atom-btn--ghost atom-btn--size-xs" title="Cerrar historial">âœ•</button>
+    </div>
+    <div class="mol-history__stats" id="history-stats" hidden></div>
+    <div class="mol-history__list" id="history-list"></div>
+  </section>
+
+  <script src="js/chart.umd.min.js"></script>
+  <script type="module" src="sidepanel.js"></script>
+</body>
+</html>

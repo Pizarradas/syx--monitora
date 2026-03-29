@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "Monitora",
+  "short_name": "Monitora",
+  "version": "0.2.0",
+  "description": "Analisis estructural y lexico de articulos. Inteligencia de lectura, no juicio.",
+  "permissions": [
+    "activeTab",
+    "sidePanel",
+    "storage",
+    "scripting"
+  ],
+  "host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+  "background": {
+    "service_worker": "service-worker.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["content-script.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "action": {
+    "default_title": "Monitora — Abrir panel de lectura"
+  }
+}
